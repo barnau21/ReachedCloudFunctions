@@ -2,6 +2,8 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const serviceAccount = require("./reachedapp-64503-"+
     "firebase-adminsdk-d3gez-9229577938.json");
+const {ServerValue} = require("firebase-admin").database;
+
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -77,37 +79,50 @@ exports.sendAbsenceNotification = functions
     });
 
 
-exports.testNotification = functions.https.onRequest(async (req, res) => {
-  // Replace this with a known valid device token for testing
-  const deviceToken = "eJrbyVGLSkOxm9kZ2iz282:APA" +
-  "91bFrknUxHc54e0NkyaUS3x5vmTOTMvletQKIhGHQzlL87VCljSXM9R" +
-  "av47onQQ_R2E8oi_PegMzn8WYPRMRXwPWFSe4Zlsj0ebTlOeq57WRHPq" +
-  "LopH6KhhOxNgNFf0nQyujCo0pG";
+exports.sendNotificationToTeacher = functions.database
+    .ref("/Attendance/{date}/{classId}/Reported Absences" +
+        "/{studentId}/TeacherNotified")
+    .onCreate(async (snapshot, context) => {
+      const classId = context.params.classId;
+      const studentId = context.params.studentId;
 
+      try {
+        console.log(`Searching for teacher with classId: ${classId}`);
+        const teachersSnapshot = await admin
+            .database().ref(`/Teacher`).once("value");
+        const teachers = teachersSnapshot.val();
 
-  const payload = {
-    notification: {
-      title: "Test Notification",
-      body: "This is a test notification from Firebase Cloud Function.",
-    },
-  };
+        if (teachers) {
+          const teacher = Object.values(teachers)
+              .find((t) => t.classId === classId);
+          const teacherToken = teacher.deviceToken;
+          console.log(`Found teacher with device token: ${teacherToken}`);
 
-  try {
-    const response = await admin.messaging().sendToDevice(deviceToken, payload);
-    console.log("FCM response:", response);
+          const payload = {
+            notification: {
+              title: "New Reported Absence",
+              body: `Absence reported for student in your class(${studentId}).`,
+              click_action: "FLUTTER_NOTIFICATION_CLICK",
+            },
+          };
 
-    if (response.results && response.results[0].error) {
-      console.error("Error:", response.results[0].error);
-      res.status(500).send("Error: " + response.results[0].error);
-    } else {
-      console.log("Test notification sent successfully");
-      res.status(200).send("Test notification sent successfully");
-    }
-  } catch (error) {
-    console.error("Error sending test notification:", error);
+          await admin.messaging().sendToDevice(teacherToken, payload);
+          console.log("Notification sent successfully");
 
-    // Send a custom response despite the error
-    res.status(200).send("attempt finished with an error: " + error);
-  }
-});
+          // set TeacherNotified to true
+          await snapshot.ref.set(true);
+          console.log("TeacherNotified set to true");
+
+          // update the timestamp
+          await snapshot.ref.parent.child(`TeacherNotifiedTimeStamp`)
+              .set(ServerValue.TIMESTAMP);
+        } else {
+          console.log("Teacher not found");
+        }
+      } catch (error) {
+        console.error(`Error sending notification: ${error}`);
+        return Promise.reject(error);
+      }
+    });
+
 
