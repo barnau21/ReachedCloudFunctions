@@ -2,7 +2,6 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const serviceAccount = require("./reachedapp-64503-"+
     "firebase-adminsdk-d3gez-9229577938.json");
-const {ServerValue} = require("firebase-admin").database;
 
 
 admin.initializeApp({
@@ -113,9 +112,12 @@ exports.sendNotificationToTeacher = functions.database
           await snapshot.ref.set(true);
           console.log("TeacherNotified set to true");
 
+          // get the current date and time
+          const currentDate = new Date();
+          const currentTime = currentDate.toLocaleString();
           // update the timestamp
           await snapshot.ref.parent.child(`TeacherNotifiedTimeStamp`)
-              .set(ServerValue.TIMESTAMP);
+              .set(currentTime);
         } else {
           console.log("Teacher not found");
         }
