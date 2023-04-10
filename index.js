@@ -127,4 +127,35 @@ exports.sendNotificationToTeacher = functions.database
       }
     });
 
+exports.sendNotificationOnNewMessage = functions.database
+    .ref("/Messaging/{convoId}/{messageId}")
+    .onCreate(async (snapshot, context) => {
+      const convoId = context.params.convoId;
 
+      const messageData = snapshot.val();
+      console.log(`Message data: ${JSON.stringify(messageData)}`);
+      const senderId = messageData.senderId;
+      const senderName = messageData.senderName;
+
+      // Extract the receiver's ID from the convoId
+      const receiverId = convoId.replace(senderId, "");
+
+      // Determine if the receiver is a Teacher or Parent
+      const userType = receiverId.startsWith("T") ? "Teacher" : "Parent";
+
+      // Find the user device tokens in the database to send notifications
+      const deviceTokenSnapshot = await admin.database()
+          .ref(`/${userType}/${receiverId}/deviceToken`).once("value");
+      const deviceToken = deviceTokenSnapshot.val();
+
+      // Customize the notification payload
+      const payload = {
+        notification: {
+          title: `New message from ${senderName}`,
+          body: messageData.message,
+        },
+      };
+
+      // Send the notification to the receiver's device
+      return admin.messaging().sendToDevice(deviceToken, payload);
+    });
