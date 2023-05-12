@@ -33,6 +33,8 @@ async function main() {
   return await initializeApp();
 }
 
+main();
+
 
 exports.testSecretManager = async (req, res) => {
   const [version] = await client.accessSecretVersion({name});
@@ -190,4 +192,4 @@ exports.sendNotificationOnNewMessage = functions.database
       return admin.messaging().sendToDevice(deviceToken, payload);
     });
 
-main();
+
