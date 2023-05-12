@@ -1,15 +1,45 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const serviceAccount = require("./reachedapp-64503-"+
-    "firebase-adminsdk-d3gez-9229577938.json");
+
+const {SecretManagerServiceClient} = require("@google-cloud/secret-manager");
+const client = new SecretManagerServiceClient();
+const name = "projects/reachedapp-64503/secrets/reached-cloud-credentials" +
+"/versions/1";
+let database = null;
+/**
+ * gets credentials from google secred
+ */
+async function getSecret() {
+  const [version] = await client.accessSecretVersion({name});
+  const credentials = JSON.parse(version.payload.data.toString());
+  return credentials;
+}
+
+/**
+ * initializes app
+ */
+async function initializeApp() {
+  admin.initializeApp({
+    credential: admin.credential.cert(await getSecret()),
+    databaseURL: "https://reachedapp-64503-default-rtdb.firebaseio.com",
+  });
+  database = admin.database();
+}
+
+/**
+ * main
+ */
+async function main() {
+  return await initializeApp();
+}
 
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://reachedapp-64503-default-rtdb.firebaseio.com",
-});
-
-const database = admin.database();
+exports.testSecretManager = async (req, res) => {
+  const [version] = await client.accessSecretVersion({name});
+  const payload = version.payload.data.toString();
+  console.debug(`Payload: ${payload}`);
+  res.sendStatus(200);
+};
 
 exports.sendAbsenceNotification = functions
     .database.ref("/Attendance/{attendanceDate}/{classId}/IsSubmitted")
@@ -20,7 +50,7 @@ exports.sendAbsenceNotification = functions
       functions.logger.debug("IsSubmitted: " + JSON.stringify(change));
 
       // Check if the attendance status has been submitted
-      if (change.after.val() === true && change.before.val() === false) {
+      if (change.after.val() === true && change.before.val() === null) {
         // Retrieve the absent students' information
         const absStudentsSnap = await database
             .ref(`/Attendance/${attendanceDate}/${classId}`)
@@ -159,3 +189,5 @@ exports.sendNotificationOnNewMessage = functions.database
       // Send the notification to the receiver's device
       return admin.messaging().sendToDevice(deviceToken, payload);
     });
+
+main();
