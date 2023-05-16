@@ -5,7 +5,7 @@ const {SecretManagerServiceClient} = require("@google-cloud/secret-manager");
 const client = new SecretManagerServiceClient();
 const name = "projects/reachedapp-64503/secrets/reached-cloud-credentials" +
 "/versions/1";
-let database = null;
+
 /**
  * gets credentials from google secred
  */
@@ -33,8 +33,8 @@ async function main() {
   return await initializeApp();
 }
 
+let database = null;
 main();
-
 
 exports.testSecretManager = async (req, res) => {
   const [version] = await client.accessSecretVersion({name});
