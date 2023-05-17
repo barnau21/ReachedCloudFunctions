@@ -7,7 +7,7 @@ const name = "projects/reachedapp-64503/secrets/reached-cloud-credentials" +
 "/versions/1";
 
 /**
- * gets credentials from google secred
+ * gets credentials from google secret
  */
 async function getSecret() {
   const [version] = await client.accessSecretVersion({name});
@@ -19,8 +19,9 @@ async function getSecret() {
  * initializes app
  */
 async function initializeApp() {
+  const credentials = await getSecret();
   admin.initializeApp({
-    credential: admin.credential.cert(await getSecret()),
+    credential: admin.credential.cert(credentials),
     databaseURL: "https://reachedapp-64503-default-rtdb.firebaseio.com",
   });
   database = admin.database();
