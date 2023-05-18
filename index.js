@@ -6,35 +6,10 @@ const client = new SecretManagerServiceClient();
 const name = "projects/reachedapp-64503/secrets/reached-cloud-credentials" +
 "/versions/1";
 
-/**
- * gets credentials from google secred
- */
-async function getSecret() {
-  const [version] = await client.accessSecretVersion({name});
-  const credentials = JSON.parse(version.payload.data.toString());
-  return credentials;
-}
 
-/**
- * initializes app
- */
-async function initializeApp() {
-  admin.initializeApp({
-    credential: admin.credential.cert(await getSecret()),
-    databaseURL: "https://reachedapp-64503-default-rtdb.firebaseio.com",
-  });
-  database = admin.database();
-}
+admin.initializeApp();
+const database = admin.database();
 
-/**
- * main
- */
-async function main() {
-  return await initializeApp();
-}
-
-let database = null;
-main();
 
 exports.testSecretManager = async (req, res) => {
   const [version] = await client.accessSecretVersion({name});
